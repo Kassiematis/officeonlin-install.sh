@@ -63,6 +63,63 @@ esac
 shift # past argument or value
 done
 
+###############################################################################
+################################# Parameters ##################################
+###############################################################################
+### Script parameters ###
+soli="/etc/apt/sources.list"
+cpu=$(nproc)
+log_dir="$PWD/$(date +'%Y%m%d-%H%M')_officeonline-install"
+sh_interactive=true
+
+### Define a set of version for LibreOffice Core and Online###
+###### THIS WILL OVERRIDE lo_src_branch & lool_src_branch VARIABLES ########
+# set_name is used to locate branchs folders in the libreoffice project
+#example : distro/collabora/
+### default set is latest version of collabora
+set_name='collabora'
+# set_core_regex & set_online_regex are regulax expression used to find the branch name for core and online
+# example:
+set_core_regex='cp-'
+set_online_regex='collabora-online'
+# set_version can be used if both branch name contains a common version number
+# if empty, latest version available for each project will be used
+set_version=''
+
+### LibreOffice parameters ###
+lo_src_repo='https://github.com/LibreOffice/core.git'
+lo_src_branch='master' # a existing branch name.
+lo_src_commit=${LOCOMMIT:-''} # the full id of a git commit
+lo_src_tag='' # a tag in the repo git
+lo_dir="/opt/libreoffice"
+lo_forcebuild=false # force compilation
+lo_req_vol=11000 # minimum space required for LibreOffice compilation, in MB
+lo_configure_opts='--without-help --without-myspell-dicts --without-java --without-doxygen'
+lo_non_free_ttf=false # add Microsoft fonts to Ubuntu
+
+### POCO parameters ###
+poco_version_latest=$(curl -s https://pocoproject.org/ | awk -F'The latest stable release is ' '{printf $2}' | grep -Eo '^[^ ]+.\w')
+poco_version=${POCOVERSION:-$poco_version_latest}
+poco_dir="/opt/poco-${poco_version}-all"
+poco_forcebuild=false
+poco_version_folder=$(curl -s https://pocoproject.org/ | grep -oiE 'The latest stable release is [0-9+]\.[0-9\.]{1,}[0-9]{1,}' | awk '{print $NF}')
+poco_req_vol=550 # minimum space required for Poco compilation, in MB
+
+### LibreOffice Online parameters ###
+lool_src_repo="https://github.com/LibreOffice/online.git"
+# variable precedence: commit > tag > branch
+lool_src_branch='master' # a existing branch name.
+lool_src_commit=${LOOLCOMMIT:-''} # the full id of a git commit
+lool_src_tag='' # a tag in the repo git
+lool_dir="/opt/online"
+lool_configure_opts='' # --enable-debug
+lool_logfile='/var/log/loolwsd.log'
+lool_forcebuild=false
+lool_maxcon=200
+lool_maxdoc=100
+lool_req_vol=650 # minimum space required for LibreOffice Online compilation, in MB
+
+
 if [[ $(id -u) -ne 0 ]] ; then echo 'Please run me as root or "sudo ./officeonline-install.sh"' ; exit 1 ; fi
 
 randpass() {
@@ -313,7 +370,7 @@ lool_src_branch='master' # a existing branch name.
 lool_src_commit=${LOOLCOMMIT:-''} # the full id of a git commit
 lool_src_tag='' # a tag in the repo git
 lool_dir="/opt/online"
-lool_configure_opts='--enable-debug'
+lool_configure_opts='' # --enable-debug
 lool_logfile='/var/log/loolwsd.log'
 lool_forcebuild=false
 lool_maxcon=200
@@ -585,7 +642,7 @@ EnvironmentFile=-/etc/sysconfig/loolwsd
 ExecStartPre=/bin/mkdir -p /usr/local/var/cache/loolwsd
 ExecStartPre=/bin/chown lool: /usr/local/var/cache/loolwsd
 PermissionsStartOnly=true
-ExecStart=${lool_dir}/loolwsd --o:sys_template_path=${lool_dir}/systemplate --o:lo_template_path=${lo_dir}/instdir  --o:child_root_path=${lool_dir}/jails --o:storage.filesystem[@allow]=true --o:admin_console.username=admin --o:admin_console.password=$PASSWORD
+ExecStart=${lool_dir}/loolwsd --o:sys_template_path=${lool_dir}/systemplate --o:lo_template_path=${lo_dir}/instdir  --o:child_root_path=${lool_dir}/jails --o:admin_console.username=admin --o:admin_console.password=$PASSWORD
 User=lool
 KillMode=control-group
 # Restart=always
@@ -619,7 +676,7 @@ after that run (systemctl daemon-reload && systemctl restart loolwsd.service).\n
   clear
 fi
 {
-sudo -Hu lool bash -c "${lool_dir}/loolwsd --o:sys_template_path=${lool_dir}/systemplate --o:lo_template_path=${lo_dir}/instdir  --o:child_root_path=${lool_dir}/jails --o:storage.filesystem[@allow]=true --o:admin_console.username=admin --o:admin_console.password=admin &"
+sudo -Hu lool bash -c "${lool_dir}/loolwsd --o:sys_template_path=${lool_dir}/systemplate --o:lo_template_path=${lo_dir}/instdir  --o:child_root_path=${lool_dir}/jails --o:admin_console.username=admin --o:admin_console.password=admin &"
 rm -rf ${lo_dir}/workdir
 sleep 18
 if pgrep -u lool loolwsd; then
